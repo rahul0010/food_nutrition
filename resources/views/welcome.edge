@@ -10,7 +10,7 @@
     <meta name="keywords" content="Colorlib Templates">
 
     <!-- Title Page-->
-    <title>Au Register Forms by Colorlib</title>
+    <title>Food Nutrition</title>
 
     <!-- Icons font CSS-->
     <link href="vendor/mdi-font/css/material-design-iconic-font.min.css" rel="stylesheet" media="all">
@@ -28,6 +28,12 @@
 </head>
 
 <body>
+    <div class="loader">
+        <div class="loader_img">
+            <img src="images/loader.svg" alt="">
+            <h4 class="title">Fetching nutritional data..</h4>
+        </div>
+    </div>
     <div class="page-wrapper bg-red p-t-180 p-b-100 font-robo">
         <div class="wrapper wrapper--w960">
             <div class="card card-2">
@@ -47,8 +53,9 @@
                     <div class="results hidden">
                       <hr>
                       <h4 class="title p-t-30">Results</h4>
-                      <div class="results" id="resuts">
-
+                      <h4 class="title title-special" id="result_name"></h4>
+                      <div class="results" id="results">
+                        
                       </div>
                     </div>
                 </div>

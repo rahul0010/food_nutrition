@@ -1,13 +1,16 @@
 'use strict'
 const Helpers = use('Helpers');
-const cos = require('ibm-cos-sdk')
+const cloudniary = require('cloudinary').v2;
+const VisualRecognitionV3 = require('ibm-watson/visual-recognition/v3');
+const { IamAuthenticator } = require('ibm-watson/auth');
+const Env = use('Env');
 
-const cos_config = {
-  endpoint: 's3.us-south.cloud-object-storage.appdomain.cloud',
-  apiKeyId: 'NSExMfDxG-9kKJl_0XVkV7JNhZgSSWmtue9VCVp2GyRQ',
-  ibmAuthEndpoint: 'https://iam.cloud.ibm.com/identity/token',
-  serviceInstanceId: 'crn:v1:bluemix:public:cloud-object-storage:global:a/372c042faa8843aab77320ed7b243158:a63b9ffb-5444-4f58-8c2d-5af9dee9afab::',
-};
+const cloud_config = {
+  cloud_name: 'bhavans',
+  api_key: '767655656278485',
+  api_secret: '1E9_EXuO0YDyGZ1Ak6uJU0NDVkk'
+}
+
 
 
 /** @typedef {import('@adonisjs/framework/src/Request')} Request */
@@ -28,43 +31,66 @@ class NutritionController {
    * @param {View} ctx.view
    */
 
-  async upload_to_cos(file) {
+  async upload_to_cloud(file) {
     return new Promise(async (resolve, reject) => {
       try {
-
-        const sw_config = {
-          Bucket: 'cloud-object-storage-9l-cos-standard-zcp',
-          key: Date.now().toString(),
-          body: Buffer.from(file)
-        }
-        const client = new cos.S3(cos_config);
-        client.putObject(sw_config, (error, data) => {
-          if(error) throw error;
-          resolve(data);
-        })
+        cloudniary.config(cloud_config);
+        const response = await cloudniary.uploader.upload(file.tmpPath);
+        // console.log(response);
+        resolve(response.secure_url);
       } catch (error) {
+        // console.log(error);
         reject(error);
       }
     });
   }
 
+  async get_watson_data(url) {
+    return new Promise(async (resolve, reject) => {
+      const visualRecognition = new VisualRecognitionV3({
+        version: '2018-03-19',
+        authenticator: new IamAuthenticator({
+          apikey: Env.get('IBM_API_KEY'),
+        }),
+        url: Env.get('IBM_URL'),
+      });
+
+      const classifyParams = {
+        url,
+        classifierIds: ['food'],
+      };
+
+      visualRecognition.classify(classifyParams)
+        .then(response => {
+          const classifiedImages = response.result;
+          // console.log(JSON.stringify(classifiedImages, null, 2));
+          resolve(classifiedImages);
+        })
+        .catch(err => {
+          console.log('error:', err);
+          reject(err);
+        });
+    });
+  }
+
+
   async index({ request, response, view }) {
+    console.log('Uploading');
     const file = request.file('food_image', {
       types: ['image'],
       size: '2mb'
     });
 
-    console.log(request);
+    // await file.move(Helpers.tmpPath('uploads'), {
+    //   name: Date.now() + '.jpg',
+    //   overwrite: true
+    // });
 
-    const client = new cos.S3(cos_config);
+    const file_link = await this.upload_to_cloud(file);
 
-    const file_upload = Drive.disk(client).putObject(file);
+    const image_results = await this.get_watson_data(file_link);
 
-    await file.move(Helpers.tmpPath('uploads'), {
-      name: Date.now() + '.jpg',
-      overwrite: true
-    });
-
+    // console.log(image_results);
 
     if (!file.moved) {
       response.header('Content-type', 'application/json');
@@ -72,7 +98,7 @@ class NutritionController {
     }
 
     response.header('Content-type', 'application/json');
-    response.status(200).send(file_upload)
+    response.status(200).send({ file_link, image_results });
   }
 
   /**
